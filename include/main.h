@@ -70,9 +70,19 @@ void opcontrol(void);
 }
 #endif
 
+#include "lemlib/api.hpp" // IWYU pragma: keep
+#include "lemlib/chassis/chassis.hpp"
+#include "pros/device.hpp"
+#include "pros/imu.hpp"
+#include "pros/misc.h"
+#include "pros/motors.h"
+#include "pros/rotation.hpp"
+#include "pros/rtos.hpp"
+
 #ifdef __cplusplus
 /**
  * You can add C++-only headers here
+ 
  */
 //#include <iostream>
 #endif

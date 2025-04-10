@@ -1,28 +1,24 @@
 #include "main.h"
-#include "lemlib/api.hpp" // IWYU pragma: keep
 #include "lemlib/chassis/chassis.hpp"
-#include "pros/device.hpp"
+#include "lemlib/chassis/trackingWheel.hpp"
 #include "pros/imu.hpp"
+#include "pros/llemu.hpp"
 #include "pros/misc.h"
-#include "pros/rotation.hpp"
-#include "pros/rtos.hpp"
+#include "pros/motors.h"
+#include "pros/optical.hpp"
 
-pros::MotorGroup left_motors({3, -4, -17}, pros::MotorGearset::blue);
-pros::MotorGroup right_motors({-11, 19, 20}, pros::MotorGearset::blue);
+pros::MotorGroup left_motors({-20, -19, -7}, pros::MotorGearset::blue);
+pros::MotorGroup right_motors({15, 11, 1}, pros::MotorGearset::blue);
 
-pros::Motor intakehooks(10); // all in one motor
-pros::Motor intakewheels(9);
+pros::Motor intake(3); // all in one motor
 
-/* Pneumatics! */
-// #define DIGITAL_SENSOR_PORT 'A'
-pros::adi::DigitalOut solenoidExtend('A');
+pros::MotorGroup ladybrown({14, -10});
 
-pros::Imu imu(1);
+pros::adi::DigitalOut solenoidExtend('H');
 
-/* pros::Rotation vertical_encoder(20);
- //vertical tracking wheel
-lemlib::TrackingWheel vertical_tracking_wheel(&vertical_encoder,
-lemlib::Omniwheel::NEW_325, -6); */
+pros::Imu imu(12                                        );
+
+pros::Optical coloursensor(18);
 
 void forwards(double time) { // move forwards
   left_motors.move_voltage(12000);
@@ -35,6 +31,14 @@ void forwards(double time) { // move forwards
 void backwards(double time) { // move backwards
   left_motors.move_voltage(-12000);
   right_motors.move_voltage(-12000);
+  pros::delay(time);
+  left_motors.move_voltage(0);
+  right_motors.move_voltage(0);
+}
+
+void slowbackwards(double time) { // move backwards
+  left_motors.move_voltage(-6000);
+  right_motors.move_voltage(-6000);
   pros::delay(time);
   left_motors.move_voltage(0);
   right_motors.move_voltage(0);
@@ -68,55 +72,50 @@ void closemogo(double time) { // clses mogo mech
   solenoidExtend.set_value(false);
 }
 
-void intakeauton(double time) { // both hooks and intake wheels
-  intakewheels.move_voltage(9000);
-  intakehooks.move_voltage(9000);
-  pros::delay(time);
-  intakewheels.move_voltage(0);
-  intakehooks.move_voltage(0);
-}
-
 lemlib::Drivetrain drivetrain(&left_motors, &right_motors,
                               13.5, // change track width once built
-                              lemlib::Omniwheel::NEW_325, 360,
+                              lemlib::Omniwheel::NEW_275, 450,
                               2 // horizontal drift is 2 (for now)
 );
 
 // odometry settings
 lemlib::OdomSensors sensors(nullptr, nullptr, nullptr, nullptr,
-                            &imu // inertial sensor
+                            & imu // inertial sensor
 );
 
-// lateral PID controller
-lemlib::ControllerSettings
-    lateral_controller(0.6, // proportional gain (kP)
-                       0,   // integral gain (kI)
-                       100, // derivative gain (kD)
-                       3,   // anti windup
-                       1,   // small error range, in inches
-                       100, // small error range timeout, in milliseconds
-                       3,   // large error range, in inches
-                       500, // large error range timeout, in milliseconds
-                       20   // maximum acceleration (slew)
-    );
+lemlib::ExpoDriveCurve throttle_curve( 3, 10, 1.040 );
+lemlib::ExpoDriveCurve steer_curve( 3, 10, 1.040 );
 
-lemlib::ControllerSettings
-    angular_controller(0.8, // proportional gain (kP)
-                       0,   // integral gain (kI)
-                       0.2, // derivative gain (kD)
-                       0,   // anti windup
-                       0,   // small error range, in inches
-                       0,   // small error range timeout, in milliseconds
-                       0,   // large error range, in inches
-                       0,   // large error range timeout, in milliseconds
-                       0    // maximum acceleration (slew)
-    );
+// lateral PID controller
+lemlib::ControllerSettings lateral_controller(10, // proportional gain (kP)
+                                              0, // integral gain (kI)
+                                              0, // derivative gain (kD)
+                                              3, // anti windup
+                                              1, // small error range, in inches
+                                              100, // small error range timeout, in milliseconds
+                                              3, // large error range, in inches
+                                              500, // large error range timeout, in milliseconds
+                                              20 // maximum acceleration (slew)
+);
+
+// angular PID controller
+lemlib::ControllerSettings angular_controller(2, // proportional gain (kP)
+                                              0, // integral gain (kI)
+                                              0, // derivative gain (kD)
+                                              3, // anti windup
+                                              1, // small error range, in degrees
+                                              100, // small error range timeout, in milliseconds
+                                              3, // large error range, in degrees
+                                              500, // large error range timeout, in milliseconds
+                                              0 // maximum acceleration (slew)
+);
+
 
 // create the chassis
 lemlib::Chassis chassis(drivetrain,         // drivetrain settings
                         lateral_controller, // lateral PID settings
                         angular_controller, // angular PID settings
-                        sensors             // odometry sensors
+                        sensors, & throttle_curve, & steer_curve            // odometry sensors
 );
 
 /**
@@ -131,7 +130,8 @@ lemlib::Chassis chassis(drivetrain,         // drivetrain settings
 void initialize() {
   pros::lcd::initialize(); // initialize brain screen
   chassis.calibrate();     // calibrate sensors
-  pros::delay(2000);
+  pros::lcd::print(1,"hi");
+  pros::delay(20);
 }
 
 /**
@@ -164,147 +164,19 @@ void competition_initialize() {}
  * from where it left off.
  */
 
-void autonomous() {
+// void autonomous() {
 
-  int whatauton = 6;
-  switch (whatauton) { // auton selecor switch statement
-  case 5:              // lem the lib
-          //  set position to x:0, y:0, heading:0s
-    // set position to x:0, y:0, heading:0
-    chassis.setPose(0, 0, 0);
-    // turn to face heading 90 with a very long timeout
-    chassis.moveToPoint(0, 48, 10000);
+//   int whatauton = 1;
+//   switch (whatauton) {
+//   case 1:
+//   break;
+//   }  }
 
-    break;
-
-  case 6:
-    solenoidExtend.set_value(true);
-    backwards(550);
-    pros::delay(10);
-    solenoidExtend.set_value(false); // we repeat this twice to be safe
-    pros::delay(10);
-    solenoidExtend.set_value(false);
-    forwards(200);
-    pros::delay(10);
-    intakeauton(1000); // preload onto mobile goal
-    pros::delay(10);
-    left(150);
-    pros::delay(10);
-    solenoidExtend.set_value(false);
-    forwards(250);
-    pros::delay(10);
-    intakeauton(1000);
-    pros::delay(10);
-    intakeauton(1000);
-    pros::delay(10);
-    left(200);
-
-    break;
-  case 1: // one ball timed both
-
-    solenoidExtend.set_value(true);
-    backwards(550);
-    pros::delay(20);
-    solenoidExtend.set_value(false); // we repeat this twice to be safe
-    pros::delay(20);
-    solenoidExtend.set_value(false);
-    forwards(200);
-    pros::delay(20);
-    intakeauton(2000); // preload onto mobile goal
-    break;
-
-  case 2:                           // timed skills
-    solenoidExtend.set_value(true); // process of getting one-ring
-    backwards(200);
-    pros::delay(20);
-    solenoidExtend.set_value(false);
-    pros::delay(20);
-    solenoidExtend.set_value(false);
-    forwards(200);
-    pros::delay(20);
-    intakeauton(2000);
-    pros::delay(20);
-    backwards(250); // starts moving towards second ring
-    pros::delay(20);
-    intakeauton(200);
-    left(250);
-    intakeauton(200);
-    pros::delay(20);
-    forwards(700);
-    intakeauton(700);
-    pros::delay(20);
-    intakeauton(2000);
-    pros::delay(20);
-    forwards(100);
-    right(100);
-    intakeauton(2000);
-    pros::delay(20);
-    intakeauton(200);
-    left(570);
-    pros::delay(20);
-    backwards(1000);
-    pros::delay(200);
-    openmogo(500); // drops mogo onto grey foam tile
-    forwards(100);
-    backwards(100);
-    openmogo(500);
-    pros::delay(1000);
-    break;
-
-  case 3: // two ring? timed right
-    solenoidExtend.set_value(true);
-    backwards(550);
-    pros::delay(20);
-    solenoidExtend.set_value(false);
-    pros::delay(20);
-    solenoidExtend.set_value(false);
-    forwards(200);
-    pros::delay(20);
-    intakeauton(2000);
-    pros::delay(20);
-    left(350); // robot starts turning towards another ring here
-    forwards(500);
-    intakeauton(2000);
-    break;
-
-  case 4: // two ring? timed left
-
-    solenoidExtend.set_value(true);
-    backwards(550);
-    pros::delay(20);
-    solenoidExtend.set_value(false);
-    pros::delay(20);
-    solenoidExtend.set_value(false);
-    forwards(200);
-    pros::delay(20);
-    intakeauton(2000);
-    pros::delay(20);
-    right(350); // robot starts turning towards another ring here
-    forwards(500);
-    intakeauton(2000);
-    break;
-  }
+void autonomous(){
+  chassis.setPose(0, 0, 0);
+  chassis.turnToHeading(90, 100000);
 }
 
-/* void autonomous(){
-
-        chassis.calibrate();
-    // set position to x:0, y:0, heading:0
-    chassis.setPose(0, 0, 0);
-        pros::delay(20);
-        chassis.turnToHeading(200, 1000);
-
-        //chassis.turnToHeading(90, 2000);
-        pros::delay(20);
-
-        int auton = 1;
-    switch (auton) {
-                case 1:
-                break;
-        }
-
- }
-*/
 /**
  * Runs the operator control code. This function will be started in its own task
  * with the default priority and stack size whenever the robot is enabled via
@@ -322,8 +194,11 @@ void opcontrol() {
   pros::Controller master(pros::E_CONTROLLER_MASTER);
 
   while (true) {
-#define DIGITAL_SENSOR_PORT 'A'
+#define DIGITAL_SENSOR_PORT 'H'
     pros::Controller controller(pros::E_CONTROLLER_MASTER);
+    left_motors.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+    right_motors.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+    ladybrown.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
 
     double left_speed =
         controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y) +
@@ -337,16 +212,14 @@ void opcontrol() {
 
     // Uses the R buttons to control the wheels on intake
 
-    // Uses the L button to control hooks on intake
+
+     // Uses the L button to control hooks on intake
     if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
-      intakehooks.move_voltage(8000); // in hooks
-      intakewheels.move_voltage(8000);
+      intake.move_voltage(12000);
     } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
-      intakehooks.move_voltage(-8000);
-      intakewheels.move_voltage(-8000);
+      intake.move_voltage(-12000);
     } else {
-      intakehooks.move_voltage(0);
-      intakewheels.move_voltage(0);
+      intake.move_voltage(0);
     }
 
     if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_B)) {
@@ -357,6 +230,18 @@ void opcontrol() {
       solenoidExtend.set_value(false);
     }
 
+    left_motors.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+    right_motors.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+    
+       if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_RIGHT)) {
+      ladybrown.move_voltage(-12000);
+    } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN)) {
+      ladybrown.move_voltage(12000);
+    } else {
+      ladybrown.move_velocity(0);
+      ladybrown.brake();
+    
+    }
     pros::delay(20);
 
     /*pros::MotorGroup left_mg({1, -2, 3});    // Creates a motor group with
