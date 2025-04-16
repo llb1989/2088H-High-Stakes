@@ -6,6 +6,10 @@
 #include "pros/misc.h"
 #include "pros/motors.h"
 #include "pros/optical.hpp"
+#include "pros/rotation.hpp"
+#include <sys/_intsup.h>
+
+pros::Controller master(pros::E_CONTROLLER_MASTER);
 
 pros::MotorGroup left_motors({-20, -19, -7}, pros::MotorGearset::blue);
 pros::MotorGroup right_motors({15, 11, 1}, pros::MotorGearset::blue);
@@ -14,11 +18,11 @@ pros::Motor intake(3); // all in one motor
 
 pros::MotorGroup ladybrown({14, -10});
 
+pros:: Imu imu (3);
 pros::adi::DigitalOut solenoidExtend('H');
+pros::adi::DigitalOut doinker('B');
 
-pros::Imu imu(12                                        );
-
-pros::Optical coloursensor(18);
+pros::Rotation rotationsensor(4);
 
 void forwards(double time) { // move forwards
   left_motors.move_voltage(12000);
@@ -31,14 +35,6 @@ void forwards(double time) { // move forwards
 void backwards(double time) { // move backwards
   left_motors.move_voltage(-12000);
   right_motors.move_voltage(-12000);
-  pros::delay(time);
-  left_motors.move_voltage(0);
-  right_motors.move_voltage(0);
-}
-
-void slowbackwards(double time) { // move backwards
-  left_motors.move_voltage(-6000);
-  right_motors.move_voltage(-6000);
   pros::delay(time);
   left_motors.move_voltage(0);
   right_motors.move_voltage(0);
@@ -101,11 +97,11 @@ lemlib::ControllerSettings lateral_controller(10, // proportional gain (kP)
 // angular PID controller
 lemlib::ControllerSettings angular_controller(2, // proportional gain (kP)
                                               0, // integral gain (kI)
-                                              0, // derivative gain (kD)
+                                              13, // derivative gain (kD)
                                               3, // anti windup
-                                              1, // small error range, in degrees
+                                              1, // small error range, in inches
                                               100, // small error range timeout, in milliseconds
-                                              3, // large error range, in degrees
+                                              3, // large error range, in inches
                                               500, // large error range timeout, in milliseconds
                                               0 // maximum acceleration (slew)
 );
@@ -115,8 +111,44 @@ lemlib::ControllerSettings angular_controller(2, // proportional gain (kP)
 lemlib::Chassis chassis(drivetrain,         // drivetrain settings
                         lateral_controller, // lateral PID settings
                         angular_controller, // angular PID settings
-                        sensors, & throttle_curve, & steer_curve            // odometry sensors
+                        sensors            // odometry sensors
 );
+
+static const int states = 3;
+int wall_stake_positions[states] = {0, -25, -120};
+int current_state = 0;
+int target = wall_stake_positions[current_state];
+
+void next_state(){
+    current_state++;
+    if(current_state >= states){
+        current_state = 0;
+    }
+    target = wall_stake_positions[current_state];
+}
+
+void prev_state(){
+    current_state--;
+    if(current_state < 0){
+        current_state = states - 1;
+    }
+    target = wall_stake_positions[current_state];
+}
+
+    double kp = 1;
+    double kd = 0;
+    double error = 0;
+    double previous_error = 0;
+    double derivative = 0;
+
+void power_wall_stake(){
+    error = target - (rotationsensor.get_position() / 100);
+    derivative = error - previous_error;
+    previous_error = error;
+
+    double velocity = (kp * error) + (kd * derivative);
+    ladybrown.move(velocity);
+}
 
 /**
  * Runs initialization code. This occurs as soon as the program is started.
@@ -129,9 +161,20 @@ lemlib::Chassis chassis(drivetrain,         // drivetrain settings
 
 void initialize() {
   pros::lcd::initialize(); // initialize brain screen
-  chassis.calibrate();     // calibrate sensors
-  pros::lcd::print(1,"hi");
-  pros::delay(20);
+  chassis.calibrate(); // calibrate sensors
+  // print position to brain screen
+  rotationsensor.reset_position();
+  pros::Task screen_task([&]() {
+      while (true) {
+          // print robot location to the brain screen
+          master.print(0, 0, "Target: %d", target);
+          pros::lcd::print(0, "X: %.2f", chassis.getPose().x); // x
+          pros::lcd::print(1, "Y: %.2f", chassis.getPose().y); // y
+          pros::lcd::print(2, "Theta: %.2f", chassis.getPose().theta); // heading
+          // delay to save resources
+          pros::delay(20);
+      }
+  });
 }
 
 /**
@@ -174,7 +217,7 @@ void competition_initialize() {}
 
 void autonomous(){
   chassis.setPose(0, 0, 0);
-  chassis.turnToHeading(90, 100000);
+  chassis.turnToHeading(135, 100000);
 }
 
 /**
@@ -191,14 +234,16 @@ void autonomous(){
  * task, not resume it from where it left off.
  */
 void opcontrol() {
-  pros::Controller master(pros::E_CONTROLLER_MASTER);
+  
 
   while (true) {
 #define DIGITAL_SENSOR_PORT 'H'
+
     pros::Controller controller(pros::E_CONTROLLER_MASTER);
     left_motors.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
     right_motors.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
     ladybrown.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+    // ladybrown.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
 
     double left_speed =
         controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y) +
@@ -215,13 +260,14 @@ void opcontrol() {
 
      // Uses the L button to control hooks on intake
     if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
-      intake.move_voltage(12000);
-    } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
       intake.move_voltage(-12000);
+    } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
+      intake.move_voltage(12000);
     } else {
       intake.move_voltage(0);
     }
 
+    // mogo mech
     if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_B)) {
       solenoidExtend.set_value(true);
     } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_A)) {
@@ -229,20 +275,35 @@ void opcontrol() {
     } else {
       solenoidExtend.set_value(false);
     }
+    
+    // doinker
+    if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_RIGHT)) {
+      doinker.set_value(true);
+    } 
 
     left_motors.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
     right_motors.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-    
-       if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_RIGHT)) {
-      ladybrown.move_voltage(-12000);
-    } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN)) {
-      ladybrown.move_voltage(12000);
-    } else {
-      ladybrown.move_velocity(0);
-      ladybrown.brake();
-    
+
+
+    //lb
+    //    if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
+    //   ladybrown.move_voltage(-12000);
+    // } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
+    //   ladybrown.move_voltage(12000);
+    // } else {
+    //   ladybrown.move_velocity(0);
+    //   // ladybrown.brake();
+    // }
+
+  
+    if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_UP)){
+      next_state();
+    } else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT)){
+      prev_state();
     }
-    pros::delay(20);
+    power_wall_stake();
+
+    pros::delay(10);
 
     /*pros::MotorGroup left_mg({1, -2, 3});    // Creates a motor group with
     forwards ports 1 & 3 and reversed port 2 pros::MotorGroup right_mg({-4, 5,
