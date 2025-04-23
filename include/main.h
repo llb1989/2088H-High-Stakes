@@ -41,6 +41,23 @@
  */
 //#include "okapi/api.hpp"
 
+#include "lemlib/chassis/chassis.hpp"
+#include "lemlib/chassis/trackingWheel.hpp"
+#include "pros/abstract_motor.hpp"
+#include "pros/adi.hpp"
+#include "pros/device.hpp"
+#include "pros/imu.hpp"
+#include "pros/llemu.hpp"
+#include "pros/misc.h"
+#include "pros/motors.h"
+#include "pros/optical.hpp"
+#include "pros/rotation.hpp"
+#include "pros/rtos.hpp"
+#include <sys/_intsup.h>
+#include "api.h"
+#include "pros/apix.h" 
+#include "lemlib/api.hpp" 
+
 /**
  * If you find doing pros::Motor() to be tedious and you'd prefer just to do
  * Motor, you can use the namespace with the following commented out line.

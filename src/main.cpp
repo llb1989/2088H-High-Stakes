@@ -1,30 +1,30 @@
 #include "main.h"
-#include "lemlib/chassis/chassis.hpp"
-#include "lemlib/chassis/trackingWheel.hpp"
-#include "pros/imu.hpp"
-#include "pros/llemu.hpp"
 #include "pros/misc.h"
-#include "pros/motors.h"
-#include "pros/optical.hpp"
-#include "pros/rotation.hpp"
-#include <sys/_intsup.h>
+#include "pros/rtos.hpp"
+
+/* ^ can move other includes to main.h ^ */
 
 pros::Controller master(pros::E_CONTROLLER_MASTER);
 
 pros::MotorGroup left_motors({-20, -19, -7}, pros::MotorGearset::blue);
 pros::MotorGroup right_motors({15, 11, 1}, pros::MotorGearset::blue);
 
-pros::Motor intake(3); // all in one motor
+pros::Motor intake(3); 
 
 pros::MotorGroup ladybrown({14, -10});
 
-pros:: Imu imu (3);
 pros::adi::DigitalOut solenoidExtend('H');
-pros::adi::DigitalOut doinker('B');
+pros::adi::DigitalOut doinker('E');
 
 pros::Rotation rotationsensor(4);
+pros:: Imu imu (17);
 
-void forwards(double time) { // move forwards
+/* ^^ why 9+ errors? idk. ^^ */
+
+bool doinkerToggle = false; 
+
+/* Hard code functions */
+void forwards(double time) { // move forwards 
   left_motors.move_voltage(12000);
   right_motors.move_voltage(12000);
   pros::delay(time);
@@ -56,36 +56,38 @@ void right(double time) { // turn right
   right_motors.move_voltage(0);
 }
 
-void openmogo(double time) { // opens mogo mech
-  solenoidExtend.set_value(true);
+void intakein(double time) { //intakes
+  intake.move_voltage(-12000);
   pros::delay(time);
-  solenoidExtend.set_value(false);
+  intake.move_voltage(0);
 }
 
-void closemogo(double time) { // clses mogo mech
-  solenoidExtend.set_value(true);
+void moveladybrown (double time, double voltage) {
+  ladybrown.move(voltage);
   pros::delay(time);
-  solenoidExtend.set_value(false);
+  intake.move_voltage(0);
 }
 
+/*Declaring Lemlib sensors and drivetrain*/
 lemlib::Drivetrain drivetrain(&left_motors, &right_motors,
                               13.5, // change track width once built
                               lemlib::Omniwheel::NEW_275, 450,
-                              2 // horizontal drift is 2 (for now)
+                              2
 );
 
 // odometry settings
-lemlib::OdomSensors sensors(nullptr, nullptr, nullptr, nullptr,
+lemlib::OdomSensors sensors(nullptr /* could use motor encoders?*/, nullptr, nullptr, nullptr,
                             & imu // inertial sensor
 );
 
+/*ask angela abt these*/
 lemlib::ExpoDriveCurve throttle_curve( 3, 10, 1.040 );
 lemlib::ExpoDriveCurve steer_curve( 3, 10, 1.040 );
 
-// lateral PID controller
-lemlib::ControllerSettings lateral_controller(10, // proportional gain (kP)
+// lateral control
+lemlib::ControllerSettings lateral_controller(3.8, // proportional gain (kP)
                                               0, // integral gain (kI)
-                                              0, // derivative gain (kD)
+                                              16, // derivative gain (kD)
                                               3, // anti windup
                                               1, // small error range, in inches
                                               100, // small error range timeout, in milliseconds
@@ -94,10 +96,10 @@ lemlib::ControllerSettings lateral_controller(10, // proportional gain (kP)
                                               20 // maximum acceleration (slew)
 );
 
-// angular PID controller
-lemlib::ControllerSettings angular_controller(2, // proportional gain (kP)
+// angular control
+lemlib::ControllerSettings angular_controller(2.5, // proportional gain (kP)
                                               0, // integral gain (kI)
-                                              13, // derivative gain (kD)
+                                              15.5, // derivative gain (kD)
                                               3, // anti windup
                                               1, // small error range, in inches
                                               100, // small error range timeout, in milliseconds
@@ -107,47 +109,48 @@ lemlib::ControllerSettings angular_controller(2, // proportional gain (kP)
 );
 
 
-// create the chassis
+/* creating chassis */
 lemlib::Chassis chassis(drivetrain,         // drivetrain settings
                         lateral_controller, // lateral PID settings
                         angular_controller, // angular PID settings
                         sensors            // odometry sensors
 );
 
-static const int states = 3;
-int wall_stake_positions[states] = {0, -25, -120};
-int current_state = 0;
+/* Ladybug pid control */
+static const int states = 3; // how many positions for the lb to be in
+int wall_stake_positions[states] = {0, -28, -150}; // angle of lb
+int current_state = 0; // starts at angle 0 always (whatever is initial lb position)
 int target = wall_stake_positions[current_state];
 
-void next_state(){
-    current_state++;
+void next_state(){ // forwards
+    current_state++; // add one = move to next state
     if(current_state >= states){
         current_state = 0;
-    }
-    target = wall_stake_positions[current_state];
+    } 
+    target = wall_stake_positions[current_state]; // updates target
 }
 
-void prev_state(){
-    current_state--;
+void prev_state(){ // backwards
+    current_state--; // subtracr one = go to past state
     if(current_state < 0){
         current_state = states - 1;
     }
-    target = wall_stake_positions[current_state];
+    target = wall_stake_positions[current_state]; // updates targer
 }
 
-    double kp = 1;
-    double kd = 0;
+    double kp = 2.5;
+    double kd = 5.8;
     double error = 0;
     double previous_error = 0;
     double derivative = 0;
 
-void power_wall_stake(){
-    error = target - (rotationsensor.get_position() / 100);
+void power_wall_stake(){ 
+    error = target - (rotationsensor.get_position() / 100); // ger rotation sensor angle
     derivative = error - previous_error;
     previous_error = error;
 
     double velocity = (kp * error) + (kd * derivative);
-    ladybrown.move(velocity);
+    ladybrown.move(velocity); // moves ladybug
 }
 
 /**
@@ -160,19 +163,23 @@ void power_wall_stake(){
 // initialize function. Runs on program startup
 
 void initialize() {
-  pros::lcd::initialize(); // initialize brain screen
-  chassis.calibrate(); // calibrate sensors
-  // print position to brain screen
-  rotationsensor.reset_position();
+  pros::lcd::initialize(); // initialize brain screen (doesn't work)
+  chassis.calibrate(); // calibrates chassis/sensors
+  ladybrown.set_brake_mode(pros::MotorBrake::hold); // stop lb from being pushed 
+  rotationsensor.reset_position(); // CURRENT POSITION WILL BE ZERO
   pros::Task screen_task([&]() {
       while (true) {
-          // print robot location to the brain screen
-          master.print(0, 0, "Target: %d", target);
-          pros::lcd::print(0, "X: %.2f", chassis.getPose().x); // x
-          pros::lcd::print(1, "Y: %.2f", chassis.getPose().y); // y
-          pros::lcd::print(2, "Theta: %.2f", chassis.getPose().theta); // heading
-          // delay to save resources
-          pros::delay(20);
+          
+          //master.print(0, 0, "angle %d", imu.get_rotation());
+          master.print(0, 0, "y: %.2f, x: %.2f", chassis.getPose().y, chassis.getPose().x); // y value works, x is questionable
+          master.print(1, 0, "X: %.2f", chassis.getPose().x); // i don't think this even prints to controller
+          /* 
+          DOESN'T WORK?!?!?!?!?
+          pros::lcd::print(0, "X: %.2f", chassis.getPose().x); // x position
+          pros::lcd::print(1, "Y: %.2f", chassis.getPose().y); // y position
+          pros::lcd::print(2, "Theta: %.2f", chassis.getPose().theta); // imu/angle of robot
+          */
+          pros::delay(10);
       }
   });
 }
@@ -207,17 +214,67 @@ void competition_initialize() {}
  * from where it left off.
  */
 
-// void autonomous() {
-
-//   int whatauton = 1;
-//   switch (whatauton) {
-//   case 1:
-//   break;
-//   }  }
-
 void autonomous(){
-  chassis.setPose(0, 0, 0);
-  chassis.turnToHeading(135, 100000);
+  chassis.moveToPoint(0, 0, 10); // resets chassis position
+
+  int autoselect = 3; // change auton 
+  switch (autoselect) {
+    
+    case 1: // blue ring rush side (one ring)
+ 
+    solenoidExtend.set_value(true); // open clamp
+    pros::delay(10);
+    chassis.moveToPoint(0, -30, 1500, {.forwards = false}); // back into goal
+    pros::delay(1000);
+    solenoidExtend.set_value(false); // grab mogo
+    pros::delay(10);
+    intakein(500); // score preload
+    pros::delay(10);
+    chassis.turnToPoint(-16, -24, 1000); // turn towards ring stack
+    pros::delay(10);
+    doinker.set_value(true); // doinker lowers
+    pros::delay(1000);
+    break;
+
+    case 2: // blue mogo rush side hopefully two ring
+
+    solenoidExtend.set_value(true); // open clamp
+    pros::delay(10);
+    chassis.moveToPoint(0, -30, 1500, {.forwards = false}); // back into goal
+    pros::delay(1000);
+    solenoidExtend.set_value(false); // grab mogo
+    pros::delay(10);
+    intakein(500); // score preload
+    pros::delay(10);
+    chassis.moveToPoint(5, -53, 1500);
+    pros::delay(1000);
+    break;
+
+    case 3: // blue goal rush side alliance wall stake three ring hopefully
+
+    moveladybrown(1000, -12000);
+    pros::delay(1000);
+    moveladybrown(500, 12000);
+    pros::delay(1000);
+    moveladybrown(10, 0);
+    solenoidExtend.set_value(true); // open clamp
+    pros::delay(10);
+    chassis.moveToPoint(0, -6, 3000, {.forwards = false, .maxSpeed = 50}); // back into goal
+    pros::delay(1000);
+    chassis.moveToPoint(-10, -33, 3000, {.forwards = false, .maxSpeed = 50}); // back into goal
+    pros::delay(1000);
+    solenoidExtend.set_value(true); // open clamp
+    pros::delay(1000);
+    solenoidExtend.set_value(false); // grab mogo
+    pros::delay(10);
+    chassis.moveToPoint(21, -35, 1500, {.forwards = true});
+    pros::delay(10);
+    intakein(2500);
+
+  }
+
+//chassis.turnToHeading(90, 100000)
+
 }
 
 /**
@@ -233,11 +290,26 @@ void autonomous(){
  * operator control task will be stopped. Re-enabling the robot will restart the
  * task, not resume it from where it left off.
  */
+
 void opcontrol() {
   
+  pros::lcd::initialize();
+	pros::Task screenTask([&]() {
+        while (true) {
+            // print robot location to the brain screen
+            pros::lcd::print(0, "X: %f", chassis.getPose().x); // x
+            pros::lcd::print(1, "Y: %f", chassis.getPose().y); // y
+            pros::lcd::print(2, "Theta: %f", chassis.getPose().theta); // heading
+            // log position telemetry
+			pros::lcd::print(4, "left: %.2f, right: %.2f", ladybrown.get_position(0), ladybrown.get_position(1));
+			
+            lemlib::telemetrySink()->info("Chassis pose: {}", chassis.getPose());
+            // delay to save resources
+            pros::delay(50);
+		}
+    });
 
   while (true) {
-#define DIGITAL_SENSOR_PORT 'H'
 
     pros::Controller controller(pros::E_CONTROLLER_MASTER);
     left_motors.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
@@ -255,9 +327,6 @@ void opcontrol() {
     left_motors.move_voltage(left_speed * (12000 / 127));
     right_motors.move_voltage(right_speed * (12000 / 127));
 
-    // Uses the R buttons to control the wheels on intake
-
-
      // Uses the L button to control hooks on intake
     if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
       intake.move_voltage(-12000);
@@ -270,46 +339,32 @@ void opcontrol() {
     // mogo mech
     if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_B)) {
       solenoidExtend.set_value(true);
-    } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_A)) {
+    } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_Y)) {
       solenoidExtend.set_value(false);
     } else {
-      solenoidExtend.set_value(false);
+      solenoidExtend.set_value(false); //clamp automatically closes
     }
     
-    // doinker
-    if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_RIGHT)) {
+    // doinker - might need to change controls for yuri
+    if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_DOWN)) {
       doinker.set_value(true);
-    } 
+    }
 
     left_motors.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
     right_motors.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-
-
-    //lb
-    //    if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
-    //   ladybrown.move_voltage(-12000);
-    // } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
-    //   ladybrown.move_voltage(12000);
-    // } else {
-    //   ladybrown.move_velocity(0);
-    //   // ladybrown.brake();
-    // }
-
   
-    if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_UP)){
-      next_state();
-    } else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT)){
-      prev_state();
-    }
+    // ladybug control
+    if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R2)){
+      next_state(); // forwards
+    } else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)){
+      prev_state(); // backwards
+    } 
+
     power_wall_stake();
 
     pros::delay(10);
 
-    /*pros::MotorGroup left_mg({1, -2, 3});    // Creates a motor group with
-    forwards ports 1 & 3 and reversed port 2 pros::MotorGroup right_mg({-4, 5,
-    -6});  // Creates a motor group with forwards port 5 and reversed ports 4 &
-    6
-
+    /* lemlib opcontrol - won't use.
 
     while (true) {
             pros::lcd::print(0, "%d %d %d", (pros::lcd::read_buttons() &
@@ -317,8 +372,8 @@ void opcontrol() {
                              (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
     // Prints status of the emulated screen LCDs
 
-            // Arcade control scheme
-            int dir = master.get_analog(ANALOG_LEFT_Y);    // Gets amount
+    // Arcade control scheme
+    int dir = master.get_analog(ANALOG_LEFT_Y);    // Gets amount
     forward/backward from left joystick int turn =
     master.get_analog(ANALOG_RIGHT_X);  // Gets the turn left/right from right
     joystick left_mg.move(dir - turn);                      // Sets left motor
