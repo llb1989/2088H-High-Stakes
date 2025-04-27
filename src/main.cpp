@@ -118,7 +118,7 @@ lemlib::Chassis chassis(drivetrain,         // drivetrain settings
 
 /* Ladybug pid control */
 static const int states = 3; // how many positions for the lb to be in
-int wall_stake_positions[states] = {0, -28, -150}; // angle of lb
+int wall_stake_positions[states] = {0, -30, -150}; // angle of lb
 int current_state = 0; // starts at angle 0 always (whatever is initial lb position)
 int target = wall_stake_positions[current_state];
 
@@ -252,6 +252,7 @@ void autonomous(){
 
     case 3: // blue goal rush side alliance wall stake three ring hopefully
 
+    pros::delay(3000);
     moveladybrown(1000, -12000);
     pros::delay(1000);
     moveladybrown(500, 12000);
@@ -265,11 +266,14 @@ void autonomous(){
     pros::delay(1000);
     solenoidExtend.set_value(true); // open clamp
     pros::delay(1000);
-    solenoidExtend.set_value(false); // grab mogo
+    solenoidExtend.set_value(false); // grab mogo 
     pros::delay(10);
-    chassis.moveToPoint(21, -35, 1500, {.forwards = true});
+    chassis.moveToPoint(12, -45, 1500, {.forwards = true});
     pros::delay(10);
-    intakein(2500);
+    intakein(2300);
+    pros::delay(10);
+    chassis.moveToPoint(-24, -14, 5000, {.forwards = true});
+    
 
   }
 
@@ -348,6 +352,9 @@ void opcontrol() {
     // doinker - might need to change controls for yuri
     if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_DOWN)) {
       doinker.set_value(true);
+    }
+    if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT)) {
+      doinker.set_value(false);
     }
 
     left_motors.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
