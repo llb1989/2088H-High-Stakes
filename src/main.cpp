@@ -62,6 +62,12 @@ void intakein(double time) { //intakes
   intake.move_voltage(0);
 }
 
+void intakeout(double time) { //intakes
+  intake.move_voltage(12000);
+  pros::delay(time);
+  intake.move_voltage(0);
+}
+
 void moveladybrown (double time, double voltage) {
   ladybrown.move(voltage);
   pros::delay(time);
@@ -85,9 +91,9 @@ lemlib::ExpoDriveCurve throttle_curve( 3, 10, 1.040 );
 lemlib::ExpoDriveCurve steer_curve( 3, 10, 1.040 );
 
 // lateral control
-lemlib::ControllerSettings lateral_controller(3.8, // proportional gain (kP)
+lemlib::ControllerSettings lateral_controller(3, // proportional gain (kP)
                                               0, // integral gain (kI)
-                                              16, // derivative gain (kD)
+                                              2, // derivative gain (kD)
                                               3, // anti windup
                                               1, // small error range, in inches
                                               100, // small error range timeout, in milliseconds
@@ -252,28 +258,39 @@ void autonomous(){
 
     case 3: // blue goal rush side alliance wall stake three ring hopefully
 
-    pros::delay(3000);
     moveladybrown(1000, -12000);
-    pros::delay(1000);
+    pros::delay(10);
     moveladybrown(500, 12000);
-    pros::delay(1000);
+    pros::delay(10);
     moveladybrown(10, 0);
     solenoidExtend.set_value(true); // open clamp
     pros::delay(10);
-    chassis.moveToPoint(0, -6, 3000, {.forwards = false, .maxSpeed = 50}); // back into goal
-    pros::delay(1000);
-    chassis.moveToPoint(-10, -33, 3000, {.forwards = false, .maxSpeed = 50}); // back into goal
+    chassis.moveToPoint(0, -6, 1000, {.forwards = false, .maxSpeed = 80}); // back into goal
+    pros::delay(10);
+    chassis.moveToPoint(-10.5, -32, 3000, {.forwards = false, .maxSpeed = 50}); // back into goal
     pros::delay(1000);
     solenoidExtend.set_value(true); // open clamp
     pros::delay(1000);
     solenoidExtend.set_value(false); // grab mogo 
     pros::delay(10);
-    chassis.moveToPoint(12, -45, 1500, {.forwards = true});
+    chassis.moveToPoint(16, -40, 1500, {.forwards = true});
     pros::delay(10);
-    intakein(2300);
+    intakein(900);
     pros::delay(10);
-    chassis.moveToPoint(-24, -14, 5000, {.forwards = true});
-    
+    backwards(100);
+    pros::delay(10);
+    chassis.turnToPoint(45, -13, 300);
+    pros::delay(10);
+    chassis.moveToPoint(45, -13, 3000);
+    pros::delay(100);
+    intakein(5000);
+    pros::delay(10);
+    chassis.turnToPoint(-24, -14, 1000, {.maxSpeed = 70});
+    pros::delay(10);
+    intakeout(200);
+    chassis.moveToPoint(-24, -14.5, 3000, {.forwards = true});
+    intakeout(1000);
+    break;
 
   }
 
