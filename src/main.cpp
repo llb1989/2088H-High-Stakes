@@ -1,6 +1,10 @@
 #include "main.h"
+#include "pros/device.hpp"
 #include "pros/misc.h"
+#include "pros/optical.hpp"
 #include "pros/rtos.hpp"
+#include <string>
+#include <sys/_intsup.h>
 
 /* ^ can move other includes to main.h ^ */
 
@@ -18,6 +22,7 @@ pros::adi::DigitalOut doinker('E');
 
 pros::Rotation rotationsensor(4);
 pros:: Imu imu (17);
+pros::Optical coloursensor (13);
 
 /* ^^ why 9+ errors? idk. ^^ */
 
@@ -74,6 +79,12 @@ void moveladybrown (double time, double voltage) {
   intake.move_voltage(0);
 }
 
+void intakestop (double time) {
+  intake.brake();
+  pros::delay(time);
+  intake.move_voltage(0);
+}
+
 /*Declaring Lemlib sensors and drivetrain*/
 lemlib::Drivetrain drivetrain(&left_motors, &right_motors,
                               13.5, // change track width once built
@@ -121,6 +132,50 @@ lemlib::Chassis chassis(drivetrain,         // drivetrain settings
                         angular_controller, // angular PID settings
                         sensors            // odometry sensors
 );
+
+int intakespeed = -12000;
+
+//color sort
+bool intakelock = false;
+bool isRed = false;
+void colorsort() {
+  pros::Task([]{
+      while (true) {
+        if (isRed == false && (coloursensor.get_hue() > 010 && coloursensor.get_hue() < 030) ||
+        (isRed == true && coloursensor.get_hue() > 150 && coloursensor.get_hue() < 230)) {
+          intake.brake();
+          intakespeed = -1000;
+      } 
+         pros::delay(100);
+  }
+});
+}
+
+
+/* void coloursorter(bool isRed) {
+  coloursensor.set_integration_time(10);
+  while (true) {
+      coloursensor.set_led_pwm(50);
+      if ( isRed == true) {
+          if (coloursensor.get_hue() > 10 && coloursensor.get_hue() < 50) {
+              intake.move_voltage(12000);
+              pros::delay(120);
+              intake.move_voltage(-12000);
+          }
+      }
+      else if (racism_against == "blue") {
+          if (color.get_hue() > 200 && color.get_hue() < 220) {
+              while (70 < distance.get()) {
+                  pros::delay(1);
+              }
+              Intake.move_voltage(-12000);
+              pros::delay(120);
+              Intake.move_voltage(12000);
+          } 
+      }
+  }
+}
+  */
 
 /* Ladybug pid control */
 static const int states = 3; // how many positions for the lb to be in
@@ -173,12 +228,14 @@ void initialize() {
   chassis.calibrate(); // calibrates chassis/sensors
   ladybrown.set_brake_mode(pros::MotorBrake::hold); // stop lb from being pushed 
   rotationsensor.reset_position(); // CURRENT POSITION WILL BE ZERO
+  coloursensor.set_integration_time(1);
+  colorsort();
   pros::Task screen_task([&]() {
       while (true) {
           
           //master.print(0, 0, "angle %d", imu.get_rotation());
-          master.print(0, 0, "y: %.2f, x: %.2f", chassis.getPose().y, chassis.getPose().x); // y value works, x is questionable
-          master.print(1, 0, "X: %.2f", chassis.getPose().x); // i don't think this even prints to controller
+          //master.print(0, 0, "y: %.2f, x: %.2f", chassis.getPose().y, chassis.getPose().x); // y value works, x is questionable
+          master.print(0, 0,"hue: %.lf", coloursensor.get_hue());
           /* 
           DOESN'T WORK?!?!?!?!?
           pros::lcd::print(0, "X: %.2f", chassis.getPose().x); // x position
@@ -221,6 +278,7 @@ void competition_initialize() {}
  */
 
 void autonomous(){
+  
   chassis.moveToPoint(0, 0, 10); // resets chassis position
 
   int autoselect = 3; // change auton 
@@ -315,20 +373,8 @@ void autonomous(){
 void opcontrol() {
   
   pros::lcd::initialize();
-	pros::Task screenTask([&]() {
-        while (true) {
-            // print robot location to the brain screen
-            pros::lcd::print(0, "X: %f", chassis.getPose().x); // x
-            pros::lcd::print(1, "Y: %f", chassis.getPose().y); // y
-            pros::lcd::print(2, "Theta: %f", chassis.getPose().theta); // heading
-            // log position telemetry
-			pros::lcd::print(4, "left: %.2f, right: %.2f", ladybrown.get_position(0), ladybrown.get_position(1));
-			
-            lemlib::telemetrySink()->info("Chassis pose: {}", chassis.getPose());
-            // delay to save resources
-            pros::delay(50);
-		}
-    });
+  coloursensor.set_led_pwm(100);
+  colorsort();
 
   while (true) {
 
@@ -350,9 +396,11 @@ void opcontrol() {
 
      // Uses the L button to control hooks on intake
     if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
-      intake.move_voltage(-12000);
+      intake.move_voltage(intakespeed);
+      coloursensor.set_led_pwm(50);
     } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
       intake.move_voltage(12000);
+      coloursensor.set_led_pwm(50);
     } else {
       intake.move_voltage(0);
     }
@@ -388,22 +436,5 @@ void opcontrol() {
 
     pros::delay(10);
 
-    /* lemlib opcontrol - won't use.
-
-    while (true) {
-            pros::lcd::print(0, "%d %d %d", (pros::lcd::read_buttons() &
-    LCD_BTN_LEFT) >> 2, (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
-                             (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
-    // Prints status of the emulated screen LCDs
-
-    // Arcade control scheme
-    int dir = master.get_analog(ANALOG_LEFT_Y);    // Gets amount
-    forward/backward from left joystick int turn =
-    master.get_analog(ANALOG_RIGHT_X);  // Gets the turn left/right from right
-    joystick left_mg.move(dir - turn);                      // Sets left motor
-    voltage right_mg.move(dir + turn);                     // Sets right motor
-    voltage pros::delay(20);                               // Run for 20 ms then
-    update
-    } */
   }
 }
