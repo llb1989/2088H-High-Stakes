@@ -162,7 +162,7 @@ lemlib::Chassis chassis(drivetrain,         // drivetrain settings
 
 /* Ladybug pid control */
 static const int states = 3; // how many positions for the lb to be in
-int wall_stake_positions[states] = {0, -30, -150}; // angle of lb
+int wall_stake_positions[states] = {0, -32, -150}; // angle of lb
 int current_state = 0; // starts at angle 0 always (whatever is initial lb position)
 int target = wall_stake_positions[current_state];
 
