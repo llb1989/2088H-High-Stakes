@@ -26,6 +26,32 @@ pros::Optical coloursensor (13);
 
 /* ^^ why 9+ errors? idk. ^^ */
 
+/* colour sort */
+int intakespeed = -12000;
+bool isRed = true;
+void colorsort() {
+  pros::Task([]{
+      while (true) {
+        if ((isRed == false && (coloursensor.get_hue() > 010 && coloursensor.get_hue() < 030)) ||
+            (isRed == true && coloursensor.get_hue() > 150 && coloursensor.get_hue() < 230)) 
+        {
+
+          intake.brake();
+          intakespeed = -110;
+          pros::delay(304);
+          intakespeed = -12000;
+
+      } else if ((isRed == false && (!coloursensor.get_hue() > 010 && !coloursensor.get_hue() < 030)) ||
+                 (isRed == true  && (!coloursensor.get_hue() > 150 && !coloursensor.get_hue() < 230))){
+
+          intakespeed = -12000;
+
+      }    
+         pros::delay(110);
+  }
+});
+}
+
 bool doinkerToggle = false; 
 
 /* Hard code functions */
@@ -62,7 +88,7 @@ void right(double time) { // turn right
 }
 
 void intakein(double time) { //intakes
-  intake.move_voltage(-12000);
+  intake.move_voltage(intakespeed);
   pros::delay(time);
   intake.move_voltage(0);
 }
@@ -133,49 +159,6 @@ lemlib::Chassis chassis(drivetrain,         // drivetrain settings
                         sensors            // odometry sensors
 );
 
-int intakespeed = -12000;
-
-//color sort
-bool intakelock = false;
-bool isRed = false;
-void colorsort() {
-  pros::Task([]{
-      while (true) {
-        if (isRed == false && (coloursensor.get_hue() > 010 && coloursensor.get_hue() < 030) ||
-        (isRed == true && coloursensor.get_hue() > 150 && coloursensor.get_hue() < 230)) {
-          intake.brake();
-          intakespeed = -1000;
-      } 
-         pros::delay(100);
-  }
-});
-}
-
-
-/* void coloursorter(bool isRed) {
-  coloursensor.set_integration_time(10);
-  while (true) {
-      coloursensor.set_led_pwm(50);
-      if ( isRed == true) {
-          if (coloursensor.get_hue() > 10 && coloursensor.get_hue() < 50) {
-              intake.move_voltage(12000);
-              pros::delay(120);
-              intake.move_voltage(-12000);
-          }
-      }
-      else if (racism_against == "blue") {
-          if (color.get_hue() > 200 && color.get_hue() < 220) {
-              while (70 < distance.get()) {
-                  pros::delay(1);
-              }
-              Intake.move_voltage(-12000);
-              pros::delay(120);
-              Intake.move_voltage(12000);
-          } 
-      }
-  }
-}
-  */
 
 /* Ladybug pid control */
 static const int states = 3; // how many positions for the lb to be in
@@ -263,7 +246,11 @@ void disabled() {}
  * This task will exit when the robot is enabled and autonomous or opcontrol
  * starts.
  */
-void competition_initialize() {}
+void competition_initialize() {
+
+  colorsort();
+
+}
 
 /**
  * Runs the user autonomous code. This function will be started in its own task
@@ -278,10 +265,13 @@ void competition_initialize() {}
  */
 
 void autonomous(){
-  
+  coloursensor.set_integration_time(1);
+  coloursensor.set_led_pwm(50);
+  colorsort();
   chassis.moveToPoint(0, 0, 10); // resets chassis position
+  isRed = true;
 
-  int autoselect = 3; // change auton 
+  int autoselect = 4; // change auton 
   switch (autoselect) {
     
     case 1: // blue ring rush side (one ring)
@@ -350,6 +340,11 @@ void autonomous(){
     intakeout(1000);
     break;
 
+    case 4: // test colour sort
+    colorsort();
+    intakein(12000000);
+    break;
+
   }
 
 //chassis.turnToHeading(90, 100000)
@@ -403,6 +398,7 @@ void opcontrol() {
       coloursensor.set_led_pwm(50);
     } else {
       intake.move_voltage(0);
+      coloursensor.set_led_pwm(10);
     }
 
     // mogo mech
