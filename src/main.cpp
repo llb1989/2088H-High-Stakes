@@ -24,35 +24,40 @@ pros::Rotation rotationsensor(4);
 pros:: Imu imu (17);
 pros::Optical coloursensor (13);
 
+bool doinkerToggle = false; 
 /* ^^ why 9+ errors? idk. ^^ */
 
 /* colour sort */
 int intakespeed = -12000;
 bool isRed = true;
+
 void colorsort() {
   pros::Task([]{
       while (true) {
         if ((isRed == false && (coloursensor.get_hue() > 010 && coloursensor.get_hue() < 030)) ||
-            (isRed == true && coloursensor.get_hue() > 150 && coloursensor.get_hue() < 230)) 
+            (isRed == true && coloursensor.get_hue() > 150 && coloursensor.get_hue() < 220)) 
         {
-
+          
+          pros::delay(67);
           intake.brake();
-          intakespeed = -110;
-          pros::delay(304);
-          intakespeed = -12000;
+          intake.move_voltage(0);
+          intakespeed = 58;
+          pros::delay(280);
+          intake.move_voltage(-12000);
+         
 
       } else if ((isRed == false && (!coloursensor.get_hue() > 010 && !coloursensor.get_hue() < 030)) ||
                  (isRed == true  && (!coloursensor.get_hue() > 150 && !coloursensor.get_hue() < 230))){
 
+          //intakespeed = -12000;
+          intake.move_voltage(-12000);
           intakespeed = -12000;
 
       }    
-         pros::delay(110);
+         pros::delay(90);
   }
 });
 }
-
-bool doinkerToggle = false; 
 
 /* Hard code functions */
 void forwards(double time) { // move forwards 
@@ -88,7 +93,7 @@ void right(double time) { // turn right
 }
 
 void intakein(double time) { //intakes
-  intake.move_voltage(intakespeed);
+  intake.move_voltage(-12000);
   pros::delay(time);
   intake.move_voltage(0);
 }
@@ -368,7 +373,6 @@ void autonomous(){
 void opcontrol() {
   
   pros::lcd::initialize();
-  coloursensor.set_led_pwm(100);
   colorsort();
 
   while (true) {
