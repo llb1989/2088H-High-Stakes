@@ -29,7 +29,7 @@ bool doinkerToggle = false;
 
 /* colour sort */
 int intakespeed = -12000;
-bool isRed = true;
+bool isRed = false;
 
 void colorsort() {
   pros::Task([]{
@@ -38,20 +38,22 @@ void colorsort() {
             (isRed == true && coloursensor.get_hue() > 150 && coloursensor.get_hue() < 220)) 
         {
           
-          pros::delay(67);
-          intake.brake();
-          intake.move_voltage(0);
-          intakespeed = 58;
+          pros::delay(58);
+          //intake.brake();
+          intakespeed = 0;
+          intake.move_voltage(0); 
+          
           pros::delay(280);
           intake.move_voltage(-12000);
+          intakespeed = -12000;
          
 
       } else if ((isRed == false && (!coloursensor.get_hue() > 010 && !coloursensor.get_hue() < 030)) ||
                  (isRed == true  && (!coloursensor.get_hue() > 150 && !coloursensor.get_hue() < 230))){
 
-          //intakespeed = -12000;
-          intake.move_voltage(-12000);
           intakespeed = -12000;
+          intake.move_voltage(-12000);
+          
 
       }    
          pros::delay(90);
@@ -274,9 +276,8 @@ void autonomous(){
   coloursensor.set_led_pwm(50);
   colorsort();
   chassis.moveToPoint(0, 0, 10); // resets chassis position
-  isRed = true;
 
-  int autoselect = 4; // change auton 
+  int autoselect = 3; // change auton 
   switch (autoselect) {
     
     case 1: // blue ring rush side (one ring)
@@ -311,6 +312,53 @@ void autonomous(){
 
     case 3: // blue goal rush side alliance wall stake three ring hopefully
 
+    moveladybrown(450, -12000);
+    pros::delay(5);
+    moveladybrown(450, 12000);
+    pros::delay(5);
+    moveladybrown(5, 0);
+    solenoidExtend.set_value(true); // open clamp
+    pros::delay(10);
+    chassis.moveToPoint(0, -6, 1000, {.forwards = false}); // back into goal
+    chassis.moveToPoint(-10.5, -32, 2500, {.forwards = false, .maxSpeed = 70}); // back into goal
+    pros::delay(1000);
+    solenoidExtend.set_value(true); // open clamp
+    pros::delay(1000);
+    solenoidExtend.set_value(false); // grab mogo 
+    pros::delay(5);
+    chassis.moveToPoint(16, -40, 1500, {.forwards = true}); // ring stack
+    pros::delay(10);
+    intakein(2000); // intake blue bottom ring
+    pros::delay(10);
+    chassis.turnToPoint(45, -13, 300); // turn to corner
+    chassis.moveToPoint(47, -12, 3000); // move to corner
+    pros::delay(10);
+    intakein(2500);
+    backwards(200);
+    forwards(250);
+    intakein(1000);
+    pros::delay(10);
+    intakein(200);
+    backwards(200);
+    pros::delay(10);
+    forwards(250);
+    intakein(1500);
+    pros::delay(10);
+    intakein(200);
+    backwards(200);
+    pros::delay(10);
+    forwards(300);
+    intakein(1500);
+    pros::delay(10);
+    chassis.moveToPoint(-26, -14.5, 3000, {.forwards = true}); // move to ladder
+    break;
+
+    case 4: // test colour sort
+    colorsort();
+    intakein(12000000);
+    break;
+
+    case 5: // consistent three ring blue goal rush positive
     moveladybrown(1000, -12000);
     pros::delay(10);
     moveladybrown(500, 12000);
@@ -343,11 +391,6 @@ void autonomous(){
     intakeout(200);
     chassis.moveToPoint(-24, -14.5, 3000, {.forwards = true});
     intakeout(1000);
-    break;
-
-    case 4: // test colour sort
-    colorsort();
-    intakein(12000000);
     break;
 
   }
