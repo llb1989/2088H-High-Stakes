@@ -225,7 +225,7 @@ void initialize() {
           
           //master.print(0, 0, "angle %d", imu.get_rotation());
           //master.print(0, 0, "y: %.2f, x: %.2f", chassis.getPose().y, chassis.getPose().x); // y value works, x is questionable
-          master.print(0, 0,"hue: %.lf", coloursensor.get_hue());
+          master.print(0, 0,"Y: %.2f", chassis.getPose().y);
           /* 
           DOESN'T WORK?!?!?!?!?
           pros::lcd::print(0, "X: %.2f", chassis.getPose().x); // x position
@@ -277,7 +277,7 @@ void autonomous(){
   colorsort();
   chassis.moveToPoint(0, 0, 10); // resets chassis position
 
-  int autoselect = 3; // change auton 
+  int autoselect = 6; // change auton 
   switch (autoselect) {
     
     case 1: // blue ring rush side (one ring)
@@ -393,6 +393,38 @@ void autonomous(){
     intakeout(1000);
     break;
 
+    case 6: // ring side
+
+    colorsort();
+    moveladybrown(600, -12000);
+    pros::delay(10);
+    moveladybrown(600, 12000);
+    pros::delay(10);
+    moveladybrown(10, 0);
+    solenoidExtend.set_value(true); // open clamp
+    pros::delay(10);
+    chassis.moveToPoint(0, -6, 500, {.forwards = false}); // back into goal
+    pros::delay(10);   
+    chassis.moveToPoint(10.5, -32, 1500, {.forwards = false, .maxSpeed = 80}); // back into goal
+    pros::delay(1000);
+    solenoidExtend.set_value(true); // open clamp
+    pros::delay(1000);
+    solenoidExtend.set_value(false); // grab mogo 
+    pros::delay(10);
+    intake.move_voltage(-12000);
+    chassis.moveToPose(-8.8, -48, 230, 4000, {.minSpeed = 70}); // move to ring stacks
+    chassis.moveToPose(-13.8, -50, 230, 3000,{.minSpeed = 70}); // second movement
+    intakein(2000);
+    pros::delay(10);
+    intake.move_voltage(-12000);
+    chassis.moveToPose(-9, -31, 0, 1000);
+    pros::delay(10);
+    intake.move_voltage(12000); 
+    chassis.moveToPose(-60, -20, 270, 4000);
+    intakein(7000);
+    pros::delay(10);
+
+    break;
   }
 
 //chassis.turnToHeading(90, 100000)
