@@ -412,18 +412,24 @@ void autonomous(){
     solenoidExtend.set_value(false); // grab mogo 
     pros::delay(10);
     intake.move_voltage(-12000);
-    chassis.moveToPose(-8.8, -48, 230, 4000, {.minSpeed = 70}); // move to ring stacks
-    chassis.moveToPose(-13.8, -50, 230, 3000,{.minSpeed = 70}); // second movement
-    intakein(2000);
+    chassis.moveToPose(-8.5, -48, 230, 4000, {.minSpeed = 70}); // move to ring stacks
+    intakein(1500);
+    chassis.moveToPose(-13, -52, 230, 3000,{.minSpeed = 70}); // second movement
+    intakein(1500);
     pros::delay(10);
     intake.move_voltage(-12000);
-    chassis.moveToPose(-9, -31, 0, 1000);
+    chassis.moveToPose(-8, -25, 0, 1000);
     pros::delay(10);
-    intake.move_voltage(12000); 
-    chassis.moveToPose(-60, -20, 270, 4000);
-    intakein(7000);
+    intake.move_voltage(12000);
+    chassis.moveToPose(-68, -16, 270, 4000); // corner
+    intakein(4000);
     pros::delay(10);
-
+    intake.move_voltage(-12000);
+    next_state();
+    next_state();
+    chassis.moveToPoint(30, -20, 4000, {.maxSpeed = 50}); // ladder
+    
+  
     break;
   }
 
