@@ -29,7 +29,7 @@ bool doinkerToggle = false;
 
 /* colour sort */
 int intakespeed = -12000;
-bool isRed = false;
+bool isRed = true;
 
 void colorsort() {
   pros::Task([]{
@@ -277,7 +277,7 @@ void autonomous(){
   colorsort();
   chassis.moveToPoint(0, 0, 10); // resets chassis position
 
-  int autoselect = 6; // change auton 
+  int autoselect = 10; // change auton 
   switch (autoselect) {
     
     case 1: // blue ring rush side (one ring)
@@ -393,7 +393,7 @@ void autonomous(){
     intakeout(1000);
     break;
 
-    case 6: // ring side
+    case 6: // ring side, 5 ring, ladder touch
 
     colorsort();
     moveladybrown(600, -12000);
@@ -408,28 +408,104 @@ void autonomous(){
     chassis.moveToPoint(10.5, -32, 1500, {.forwards = false, .maxSpeed = 80}); // back into goal
     pros::delay(1000);
     solenoidExtend.set_value(true); // open clamp
-    pros::delay(1000);
+    pros::delay(10);
     solenoidExtend.set_value(false); // grab mogo 
     pros::delay(10);
     intake.move_voltage(-12000);
-    chassis.moveToPose(-8.5, -48, 230, 4000, {.minSpeed = 70}); // move to ring stacks
-    intakein(1500);
-    chassis.moveToPose(-13, -52, 230, 3000,{.minSpeed = 70}); // second movement
-    intakein(1500);
+    chassis.moveToPose(-8, -48, 230, 4000, {.minSpeed = 70}); // move to ring stacks
+    chassis.moveToPose(-12.4, -51, 230, 3000,{.minSpeed = 70}); // second movement
+    intakein(4500);
     pros::delay(10);
     intake.move_voltage(-12000);
     chassis.moveToPose(-8, -25, 0, 1000);
     pros::delay(10);
-    intake.move_voltage(12000);
+    intake.move_voltage(-12000);
     chassis.moveToPose(-68, -16, 270, 4000); // corner
-    intakein(4000);
+    backwards(50);
+    intakein(3000);
     pros::delay(10);
     intake.move_voltage(-12000);
     next_state();
     next_state();
-    chassis.moveToPoint(30, -20, 4000, {.maxSpeed = 50}); // ladder
+    chassis.moveToPoint(30, -20, 4000, {.maxSpeed = 75}); // ladder
+    break;
     
-  
+    case 7:
+
+    colorsort();
+    moveladybrown(600, -12000);
+    pros::delay(10);
+    moveladybrown(600, 12000);
+    pros::delay(10);
+    moveladybrown(10, 0);
+    solenoidExtend.set_value(true); // open clamp
+    pros::delay(10);
+    chassis.moveToPoint(0, -6, 500, {.forwards = false}); // back into goal
+    pros::delay(10);   
+    chassis.moveToPoint(10.5, -32, 1500, {.forwards = false, .maxSpeed = 80}); // back into goal
+    pros::delay(1000);
+    solenoidExtend.set_value(true); // open clamp
+    pros::delay(10);
+    solenoidExtend.set_value(false); // grab mogo 
+    pros::delay(10);
+    intake.move_voltage(-12000);
+    chassis.moveToPose(-8, -48, 230, 4000, {.minSpeed = 70}); // move to ring stacks
+    chassis.moveToPose(-12.4, -51, 230, 3000,{.minSpeed = 70}); // second movement
+    intakein(3000);
+    pros::delay(10);
+    chassis.moveToPose(-8, -25, 0, 1000);
+    pros::delay(10);
+    chassis.moveToPose(-68, -16, 270, 3000); // corner
+    pros::delay(10);
+    intake.move_voltage(0);
+    backwards(1000);
+    pros::delay(10);
+    forwards(1000);
+    pros::delay(10);
+
+    break;
+
+    case 8:
+    intakein(1500);
+    pros::delay(10);
+    intake.move_voltage(-12000);
+    backwards(200);
+    pros::delay(10);
+    intake.move_voltage(-12000);
+    forwards(400);
+    intakein(1000);
+    pros::delay(10);
+    intake.move_voltage(-12000);
+    backwards(150);
+    pros::delay(10);
+    intake.move_voltage(-12000);
+    forwards(400);
+    intakein(1500);
+    pros::delay(10);
+    intake.move_voltage(-12000);
+    break;
+
+    case 10:
+    intakein(500);
+    pros::delay(10);
+    solenoidExtend.set_value(true);
+    pros::delay(10);
+    chassis.moveToPoint(0, 8, 400, {.minSpeed = 80});
+    chassis.moveToPose(20, 8, 270, 2000, {.forwards = false, .minSpeed = 80});
+    pros::delay(1000);
+    solenoidExtend.set_value(true);
+    pros::delay(10);
+    solenoidExtend.set_value(false);
+    pros::delay(10);
+    intake.move_voltage(-12000);
+    chassis.moveToPoint(10, 25, 2000);
+    pros::delay(10);
+    chassis.moveToPoint(38, 38, 2000);
+    pros::delay(10);
+    chassis.moveToPoint(20, 38, 500);
+    chassis.moveToPoint(19, 14, 2000);
+    pros::delay(10);
+    chassis.moveToPoint(19, 14, 2000);
     break;
   }
 
