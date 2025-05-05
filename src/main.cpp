@@ -3,6 +3,7 @@
 #include "pros/misc.h"
 #include "pros/optical.hpp"
 #include "pros/rtos.hpp"
+#include <chrono>
 #include <string>
 #include <sys/_intsup.h>
 
@@ -276,8 +277,8 @@ void autonomous(){
   coloursensor.set_led_pwm(50);
   colorsort();
   chassis.moveToPoint(0, 0, 10); // resets chassis position
-
-  int autoselect = 10; // change auton 
+ 
+  int autoselect = 12; // change auton 
   switch (autoselect) {
     
     case 1: // blue ring rush side (one ring)
@@ -353,11 +354,6 @@ void autonomous(){
     chassis.moveToPoint(-26, -14.5, 3000, {.forwards = true}); // move to ladder
     break;
 
-    case 4: // test colour sort
-    colorsort();
-    intakein(12000000);
-    break;
-
     case 5: // consistent three ring blue goal rush positive
     moveladybrown(1000, -12000);
     pros::delay(10);
@@ -393,7 +389,7 @@ void autonomous(){
     intakeout(1000);
     break;
 
-    case 6: // ring side, 5 ring, ladder touch
+    case 6: // blue ring side, 5 ring, ladder touch
 
     colorsort();
     moveladybrown(600, -12000);
@@ -412,7 +408,7 @@ void autonomous(){
     solenoidExtend.set_value(false); // grab mogo 
     pros::delay(10);
     intake.move_voltage(-12000);
-    chassis.moveToPose(-8, -48, 230, 4000, {.minSpeed = 70}); // move to ring stacks
+    chassis.moveToPose(-7.8, -48, 230, 4000, {.minSpeed = 70}); // move to ring stacks
     chassis.moveToPose(-12.4, -51, 230, 3000,{.minSpeed = 70}); // second movement
     intakein(4500);
     pros::delay(10);
@@ -425,12 +421,10 @@ void autonomous(){
     intakein(3000);
     pros::delay(10);
     intake.move_voltage(-12000);
-    next_state();
-    next_state();
     chassis.moveToPoint(30, -20, 4000, {.maxSpeed = 75}); // ladder
     break;
     
-    case 7:
+    case 7: // six ??
 
     colorsort();
     moveladybrown(600, -12000);
@@ -462,36 +456,15 @@ void autonomous(){
     pros::delay(10);
     forwards(1000);
     pros::delay(10);
-
     break;
 
-    case 8:
-    intakein(1500);
-    pros::delay(10);
-    intake.move_voltage(-12000);
-    backwards(200);
-    pros::delay(10);
-    intake.move_voltage(-12000);
-    forwards(400);
-    intakein(1000);
-    pros::delay(10);
-    intake.move_voltage(-12000);
-    backwards(150);
-    pros::delay(10);
-    intake.move_voltage(-12000);
-    forwards(400);
-    intakein(1500);
-    pros::delay(10);
-    intake.move_voltage(-12000);
-    break;
-
-    case 10:
+    case 10: // skill?
     intakein(500);
     pros::delay(10);
     solenoidExtend.set_value(true);
     pros::delay(10);
     chassis.moveToPoint(0, 8, 400, {.minSpeed = 80});
-    chassis.moveToPose(20, 8, 270, 2000, {.forwards = false, .minSpeed = 80});
+    chassis.moveToPose(20, 8, 270, 1000, {.forwards = false, .minSpeed = 80});
     pros::delay(1000);
     solenoidExtend.set_value(true);
     pros::delay(10);
@@ -507,6 +480,79 @@ void autonomous(){
     pros::delay(10);
     chassis.moveToPoint(19, 14, 2000);
     break;
+
+    case 11: // red side mogo rush
+    colorsort();
+    moveladybrown(500, -12000);
+    pros::delay(10);
+    moveladybrown(500, 12000);
+    pros::delay(10);
+    moveladybrown(10, 0);
+    solenoidExtend.set_value(true); // open clamp
+    pros::delay(10);
+    chassis.moveToPoint(0, -6, 1000, {.forwards = false, .maxSpeed = 90}); // back into goal
+    pros::delay(10);
+    chassis.moveToPoint(10.5, -32, 2000, {.forwards = false, .maxSpeed = 70}); // back into goal
+    pros::delay(1000);
+    solenoidExtend.set_value(true); // open clamp
+    pros::delay(100);
+    solenoidExtend.set_value(false); // grab mogo 
+    pros::delay(10);
+    chassis.moveToPoint(-18, -40, 1500, {.forwards = true}); // ring stack
+    pros::delay(10);
+    intake.move_voltage(-12000);
+    pros::delay(10);
+    backwards(100);
+    pros::delay(10);
+    chassis.moveToPoint(-45, -13, 3000, {.maxSpeed = 90});
+    pros::delay(100);
+    intakein(4000);
+    intake.move_voltage(-12000);
+    pros::delay(10);
+    intake.move_voltage(-12000);
+    backwards(250);
+    pros::delay(500);
+    intake.move_voltage(-12000);
+    forwards(250);
+    pros::delay(1000);
+    chassis.turnToPoint(-24, -14, 1000, {.maxSpeed = 70}); // to ladder
+    pros::delay(10);
+    chassis.moveToPoint(24, -14.5, 3000, {.forwards = true});
+    break;
+
+    case 12:
+    colorsort();
+    moveladybrown(600, -12000);
+    pros::delay(10);
+    moveladybrown(600, 12000);
+    pros::delay(10);
+    moveladybrown(10, 0);
+    solenoidExtend.set_value(true); // open clamp
+    pros::delay(10);
+    chassis.moveToPoint(0, -6, 500, {.forwards = false}); // back into goal
+    chassis.moveToPoint(-12.5, -33.5, 1500, {.forwards = false, .maxSpeed = 80}); // back into goal
+    pros::delay(1000);
+    solenoidExtend.set_value(true); // open clamp
+    pros::delay(100);
+    solenoidExtend.set_value(false); // grab mogo 
+    pros::delay(10);
+    intake.move_voltage(-12000);
+    chassis.moveToPose(7.8, -48, 130, 4000, {.minSpeed = 70}); // move to ring stacks
+    chassis.moveToPose(12.4, -51, 130, 3000,{.minSpeed = 70}); // second movement
+    intakein(2500);
+    pros::delay(10);
+    intake.move_voltage(-12000);
+    chassis.moveToPose(4, -25, 0, 1000);
+    pros::delay(10);
+    intake.move_voltage(-12000);
+    chassis.moveToPose(67, -15, 85, 4000); // corner
+    backwards(50);
+    intakein(2000);
+    pros::delay(10);
+    intake.move_voltage(-12000);
+    chassis.moveToPoint(-25, -18, 4000, {.maxSpeed = 75}); // ladder
+    break;
+
   }
 
 //chassis.turnToHeading(90, 100000)
@@ -556,8 +602,9 @@ void opcontrol() {
       coloursensor.set_led_pwm(50);
     } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
       intake.move_voltage(12000);
-      coloursensor.set_led_pwm(50);
+      coloursensor.set_led_pwm(50); 
     } else {
+      
       intake.move_voltage(0);
       coloursensor.set_led_pwm(10);
     }
