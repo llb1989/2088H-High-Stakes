@@ -370,6 +370,7 @@ void autonomous(){
     pros::delay(1000);
     solenoidExtend.set_value(false); // grab mogo 
     pros::delay(10);
+    intake.move_voltage(-12000);
     chassis.moveToPoint(16, -40, 1500, {.forwards = true});
     pros::delay(10);
     intakein(900);
@@ -530,7 +531,7 @@ void autonomous(){
     solenoidExtend.set_value(true); // open clamp
     pros::delay(10);
     chassis.moveToPoint(0, -6, 500, {.forwards = false}); // back into goal
-    chassis.moveToPoint(-12.5, -33.5, 1500, {.forwards = false, .maxSpeed = 80}); // back into goal
+    chassis.moveToPoint(-11.5, -32, 1500, {.forwards = false, .maxSpeed = 80}); // back into goal
     pros::delay(1000);
     solenoidExtend.set_value(true); // open clamp
     pros::delay(100);
@@ -538,19 +539,23 @@ void autonomous(){
     pros::delay(10);
     intake.move_voltage(-12000);
     chassis.moveToPose(7.8, -48, 130, 4000, {.minSpeed = 70}); // move to ring stacks
-    chassis.moveToPose(12.4, -51, 130, 3000,{.minSpeed = 70}); // second movement
+    chassis.moveToPose(12.4, -50, 130, 3000,{.minSpeed = 70}); // second movement
     intakein(2500);
     pros::delay(10);
     intake.move_voltage(-12000);
-    chassis.moveToPose(4, -25, 0, 1000);
+    chassis.moveToPose(4, -28, 0, 1000);
     pros::delay(10);
     intake.move_voltage(-12000);
     chassis.moveToPose(67, -15, 85, 4000); // corner
     backwards(50);
     intakein(2000);
     pros::delay(10);
+    next_state();
+    next_state();
     intake.move_voltage(-12000);
-    chassis.moveToPoint(-25, -18, 4000, {.maxSpeed = 75}); // ladder
+    chassis.moveToPoint(-28, -18, 4000, {.maxSpeed = 75}); // ladder
+    prev_state();
+    prev_state();
     break;
 
   }
