@@ -573,7 +573,11 @@ void autonomous(){
     pros::delay(10);
     intake.move_voltage(-12000);
     chassis.moveToPose(7.8, -48, 130, 4000, {.minSpeed = 70}); // move to ring stacks
+<<<<<<< HEAD
     chassis.moveToPose(12.4, -50, 130, 2500,{.minSpeed = 70}); // second movement
+=======
+    chassis.moveToPose(12.4, -50, 130, 3000,{.minSpeed = 70}); // second movement
+>>>>>>> a1d2db8bf76d6da0c2ece475118d2812e96655cf
     intakein(2500);
     pros::delay(10);
     intake.move_voltage(-12000);
