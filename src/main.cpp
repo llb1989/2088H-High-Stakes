@@ -262,7 +262,7 @@ void disabled() {}
  */
 void competition_initialize() {
 
-
+  
 }
 
 /**
@@ -283,7 +283,7 @@ void autonomous(){
   colorsort();
   chassis.moveToPoint(0, 0, 10); // resets chassis position
   
-  int autoselect = 12; // change auton 
+  int autoselect = 6; // change auton 
 
   /* 
   
@@ -487,7 +487,7 @@ void autonomous(){
     pros::delay(1000);
     solenoidExtend.set_value(true);
     pros::delay(10);
-    solenoidExtend.set_value(false);
+    solenoidExtend.set_value(false); 
     pros::delay(10);
     intake.move_voltage(-12000);
     chassis.moveToPoint(10, 25, 2000);
@@ -834,6 +834,9 @@ void autonomous(){
     ladybrown.move_voltage(-2000);
     break;
 
+    case 111: 
+    backwards(100);
+    break;
 
   }
 
@@ -922,6 +925,13 @@ void opcontrol() {
       colortoggle = false;
     } else if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) {
       colortoggle = true;
+    }
+
+    if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_UP)) { // KILLSWITCH
+      ladybrown.move_voltage(12000);
+      pros::delay(2000);
+      ladybrown.move_voltage(0);
+      rotationsensor.set_position(0);
     }
 
     power_wall_stake();
